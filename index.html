@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Touch Counter</title>
+
+<style>
+body{
+  margin:0;
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-family:system-ui,Arial;
+  background:linear-gradient(180deg,#071021,#081123);
+  color:white;
+  text-align:center;
+}
+
+.wrap{
+  max-width:900px;
+  padding:20px;
+}
+
+.arabic{
+  font-size:28px;
+  direction:rtl;
+  font-weight:600;
+}
+
+.translit{
+  font-size:14px;
+  opacity:.9;
+  margin-top:6px;
+}
+
+.touch-btn{
+  width:240px;
+  height:240px;
+  border-radius:50%;
+  margin:30px auto;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  background:linear-gradient(#0b1220,#0a1830);
+  border:6px solid rgba(255,255,255,.06);
+  box-shadow:0 10px 40px rgba(0,0,0,.6);
+  cursor:pointer;
+  user-select:none;
+  position:relative;
+  overflow:hidden;
+}
+
+.touch-btn:active{
+  transform:scale(.97);
+}
+
+.label{
+  font-size:16px;
+  opacity:.85;
+}
+
+.count{
+  font-size:40px;
+  font-weight:800;
+}
+
+.small{
+  font-size:12px;
+  opacity:.7;
+}
+
+.below{
+  margin-top:10px;
+  font-size:14px;
+}
+
+.ripple{
+  position:absolute;
+  border-radius:50%;
+  transform:scale(0);
+  animation:ripple .7s linear;
+  background:rgba(125,211,252,.2);
+  pointer-events:none;
+}
+
+@keyframes ripple{
+  to{transform:scale(4);opacity:0;}
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrap">
+
+<div class="arabic">
+اَمَّنْ یُّجِیْبُ الْمُضْطَرَّ اِذَا دَعَاهُ وَ یَكْشِفُ السُّوْٓءَ
+</div>
+
+<div class="translit">
+Ammai Yujeebul Muztarra Izha Daa'u wa Yakhshiffasoo
+</div>
+
+<div id="touchBtn" class="touch-btn">
+  <div class="label">Global Count</div>
+  <div id="globalTotal" class="count">0</div>
+</div>
+
+<div id="localCountText" class="small">
+You tapped: 0 times (this session)
+</div>
+
+<div class="below">
+Please recite the above Zikr as much as possible.
+</div>
+
+</div>
+
+<!-- Firebase CDN -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+<script>
+
+/* ===============================
+   PASTE YOUR FIREBASE CONFIG HERE
+   =============================== */
+
+const firebaseConfig = {
+  apiKey: "PASTE_API_KEY",
+  authDomain: "PROJECT.firebaseapp.com",
+  databaseURL: "https://PROJECT-default-rtdb.firebaseio.com",
+  projectId: "PROJECT",
+  storageBucket: "PROJECT.appspot.com",
+  messagingSenderId: "ID",
+  appId: "APPID"
+};
+
+/* =============================== */
+
+firebase.initializeApp(firebaseConfig);
+
+const db = firebase.database();
+const totalRef = db.ref("globalTouchCount/value");
+
+const globalTotalEl = document.getElementById("globalTotal");
+const touchBtn = document.getElementById("touchBtn");
+const localText = document.getElementById("localCountText");
+
+let localCount =
+  Number(sessionStorage.getItem("localTouchCount") || 0);
+
+localText.textContent =
+  `You tapped: ${localCount} times (this session)`;
+
+totalRef.on("value", snap=>{
+  const val = snap.val() || 0;
+  globalTotalEl.textContent = val;
+});
+
+function ripple(e){
+  const r=document.createElement("span");
+  r.className="ripple";
+
+  const rect=touchBtn.getBoundingClientRect();
+  const size=Math.max(rect.width,rect.height);
+
+  r.style.width=r.style.height=size+"px";
+
+  const x=(e.touches?e.touches[0].clientX:e.clientX)
+      -rect.left-size/2;
+  const y=(e.touches?e.touches[0].clientY:e.clientY)
+      -rect.top-size/2;
+
+  r.style.left=x+"px";
+  r.style.top=y+"px";
+
+  touchBtn.appendChild(r);
+  setTimeout(()=>r.remove(),700);
+}
+
+function increment(){
+  totalRef.transaction(current=>{
+    return (current||0)+1;
+  },(err,committed)=>{
+    if(committed){
+      localCount++;
+      sessionStorage.setItem(
+        "localTouchCount",
+        localCount
+      );
+      localText.textContent=
+        `You tapped: ${localCount} times (this session)`;
+    }
+  });
+}
+
+touchBtn.addEventListener("touchstart",e=>{
+  e.preventDefault();
+  ripple(e);
+  increment();
+},{passive:false});
+
+touchBtn.addEventListener("mousedown",e=>{
+  ripple(e);
+  increment();
+});
+
+touchBtn.tabIndex=0;
+touchBtn.addEventListener("keydown",e=>{
+  if(e.key===" "||e.key==="Enter"){
+    increment();
+  }
+});
+
+</script>
+
+</body>
+</html>
